@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI경영학과 신입생 관리 시스템 (Cloud)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f1f5f9;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(30, 58, 138, 0.05) 0px, transparent 50%);
+        }
+
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .profile-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .profile-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+
+        .premium-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .logo-container {
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- Header -->
+    <header class="premium-bg text-white py-4 px-8 shadow-2xl flex justify-between items-center sticky top-0 z-40 border-b border-white/10">
+        <div class="flex items-center gap-5">
+            <div class="logo-container bg-white p-1 rounded-full overflow-hidden w-16 h-16 flex items-center justify-center shadow-lg border-2 border-slate-700">
+                <!-- Provided Logo Applied -->
+                <img src="https://api.deepai.org/job-view-file/e689d701-7667-4277-94d7-466d72856f6c/outputs/output.jpg" alt="AI경영학과 로고" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/64?text=AI+BIZ'">
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    AI경영학과
+                </h1>
+                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium tracking-widest uppercase">
+                    <span class="w-2 h-0.5 bg-blue-500"></span>
+                    Endicott College Management
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-5">
+            <div id="connectionStatus" class="hidden items-center gap-2 text-[10px] bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 font-bold uppercase tracking-tighter">
+                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div> CLOUD CONNECTED
+            </div>
+            <button id="addBtn" class="bg-white hover:bg-slate-100 text-slate-900 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50" disabled>
+                <i class="fas fa-plus text-sm"></i> 등록
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6 md:p-10">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-slate-200 pb-8">
+            <div class="space-y-1">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-3xl font-black text-slate-900">신입생 데이터베이스</h2>
+                    <span id="studentCount" class="bg-slate-900 text-white px-3 py-1 rounded-lg text-sm font-bold">0</span>
+                </div>
+                <p class="text-slate-500 font-medium">인공지능 경영 전문가를 꿈꾸는 AI경영학과의 미래 인재들을 관리합니다.</p>
+            </div>
+            <div class="relative w-full md:w-96">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" placeholder="학생 성함 또는 학번을 입력하세요..." class="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-600 focus:border-transparent focus:outline-none shadow-sm transition-all text-sm">
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="mainLoader" class="flex flex-col items-center justify-center py-32">
+            <div class="loader mb-4 border-slate-200 border-t-blue-600 w-12 h-12"></div>
+            <p class="text-slate-400 font-semibold animate-pulse tracking-tight">클라우드 서버에서 동기화 중...</p>
+        </div>
+
+        <!-- Student Grid -->
+        <div id="studentGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <!-- Cards will be injected here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex flex-col items-center justify-center py-32 text-slate-400">
+            <div class="bg-white shadow-sm border border-slate-100 p-10 rounded-full mb-6">
+                <i class="fas fa-folder-open text-6xl text-slate-200"></i>
+            </div>
+            <p class="text-xl font-bold text-slate-700">등록된 학생 프로필이 없습니다.</p>
+            <p class="text-sm mt-2 text-slate-400 font-medium">상단 등록 버튼을 통해 신규 프로필을 생성할 수 있습니다.</p>
+        </div>
+    </main>
+
+    <!-- Modal (Add/Edit) -->
+    <div id="modal" class="modal-overlay fixed inset-0 z-50 justify-center items-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0 duration-300 modal-container border border-slate-200">
+            <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/80">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-user-edit text-blue-600"></i>
+                    학생 정보 관리
+                </h3>
+                <button id="closeModal" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-400 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="studentForm" class="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+                <div class="flex flex-col items-center">
+                    <div id="photoPreview" class="w-32 h-32 bg-slate-50 rounded-full flex items-center justify-center border-2 border-dashed border-slate-300 mb-3 overflow-hidden relative group cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50">
+                        <i class="fas fa-camera text-3xl text-slate-300 group-hover:text-blue-500"></i>
+                        <img id="previewImg" class="w-full h-full object-cover hidden">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fas fa-sync text-white"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="photoInput" accept="image/*" class="hidden">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">이름</label>
+                        <input type="text" name="name" required placeholder="성함 입력" class="bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">학번</label>
+                        <input type="text" name="studentId" required placeholder="학번 8자리" class="bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                    </div>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">연락처</label>
+                    <input type="tel" name="phone" placeholder="010-0000-0000" class="bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">거주지 주소</label>
+                    <input type="text" name="address" placeholder="시/군/구 동 상세주소" class="bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">수강 중인 전공 (콤마 구분)</label>
+                    <textarea name="courses" rows="3" placeholder="AI경영학입론, 파이썬, 데이터베이스" class="bg-slate-50 border border-slate-100 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none text-sm transition-all"></textarea>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" id="cancelBtn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3.5 rounded-2xl transition-all">취소</button>
+                    <button type="submit" id="saveBtn" class="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-3.5 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <span>프로필 저장</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal-overlay fixed inset-0 z-[60] justify-center items-center p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
+            <h4 id="alertTitle" class="text-lg font-bold text-slate-900 mb-2">알림</h4>
+            <p id="alertMsg" class="text-slate-500 text-sm mb-6"></p>
+            <div class="flex gap-2" id="alertActions">
+                <button id="alertConfirm" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let students = [];
+        let currentEditingId = null;
+        let selectedPhotoData = "";
+        let authUser = null;
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "",
+            authDomain: "aicm-db.firebaseapp.com",
+            projectId: "aicm-db",
+            storageBucket: "aicm-db.firebasestorage.app",
+            messagingSenderId: "975983961806",
+            appId: "1:975983961806:web:7c6eeb4c905869d185929f"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const elements = {
+            addBtn: document.getElementById('addBtn'),
+            modal: document.getElementById('modal'),
+            modalContainer: document.querySelector('.modal-container'),
+            closeModal: document.getElementById('closeModal'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            studentForm: document.getElementById('studentForm'),
+            studentGrid: document.getElementById('studentGrid'),
+            mainLoader: document.getElementById('mainLoader'),
+            emptyState: document.getElementById('emptyState'),
+            studentCountDisplay: document.getElementById('studentCount'),
+            searchInput: document.getElementById('searchInput'),
+            photoInput: document.getElementById('photoInput'),
+            photoPreview: document.getElementById('photoPreview'),
+            previewImg: document.getElementById('previewImg'),
+            photoIcon: document.querySelector('#photoPreview i'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            saveBtn: document.getElementById('saveBtn')
+        };
+
+        const showAlert = (title, msg, type = 'info', onConfirm = null) => {
+            const alertModal = document.getElementById('alertModal');
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMsg').textContent = msg;
+            const alertActions = document.getElementById('alertActions');
+
+            if (type === 'confirm') {
+                alertActions.innerHTML = `
+                    <button class="flex-1 bg-slate-100 text-slate-500 font-bold py-3 rounded-xl" id="alertCancel">취소</button>
+                    <button class="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl" id="alertDoAction">삭제</button>
+                `;
+                document.getElementById('alertCancel').onclick = () => alertModal.classList.remove('active');
+                document.getElementById('alertDoAction').onclick = () => {
+                    alertModal.classList.remove('active');
+                    if (onConfirm) onConfirm();
+                };
+            } else {
+                alertActions.innerHTML = `<button class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl" id="alertConfirmBtn">확인</button>`;
+                document.getElementById('alertConfirmBtn').onclick = () => alertModal.classList.remove('active');
+            }
+            alertModal.classList.add('active');
+        };
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Fail", error);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authUser = user;
+                elements.addBtn.disabled = false;
+                elements.connectionStatus.classList.replace('hidden', 'flex');
+                startDataSubscription();
+            } else {
+                initAuth();
+            }
+        });
+
+        const startDataSubscription = () => {
+            const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+            onSnapshot(studentsCol, (snapshot) => {
+                students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                elements.mainLoader.classList.add('hidden');
+                elements.studentGrid.classList.remove('hidden');
+                renderStudents(elements.searchInput.value);
+            }, (err) => {
+                console.error(err);
+                elements.mainLoader.classList.add('hidden');
+                showAlert("연결 실패", "네트워크를 확인해 주세요.");
+            });
+        };
+
+        const toggleModal = (show) => {
+            if (show) {
+                elements.modal.classList.add('active');
+                setTimeout(() => {
+                    elements.modalContainer.classList.remove('scale-95', 'opacity-0');
+                    elements.modalContainer.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                elements.modalContainer.classList.remove('scale-100', 'opacity-100');
+                elements.modalContainer.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    elements.modal.classList.remove('active');
+                    resetForm();
+                }, 300);
+            }
+        };
+
+        const resetForm = () => {
+            elements.studentForm.reset();
+            elements.previewImg.classList.add('hidden');
+            elements.photoIcon.classList.remove('hidden');
+            selectedPhotoData = "";
+            currentEditingId = null;
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-user-edit text-blue-600"></i> 학생 정보 관리`;
+            elements.saveBtn.disabled = false;
+            elements.saveBtn.querySelector('span').textContent = "프로필 저장";
+        };
+
+        elements.photoPreview.onclick = () => elements.photoInput.click();
+        elements.photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 1024 * 1024) {
+                    showAlert("알림", "1MB 이하의 사진만 업로드 가능합니다.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    selectedPhotoData = event.target.result;
+                    elements.previewImg.src = selectedPhotoData;
+                    elements.previewImg.classList.remove('hidden');
+                    elements.photoIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        elements.addBtn.onclick = () => toggleModal(true);
+        elements.closeModal.onclick = () => toggleModal(false);
+        elements.cancelBtn.onclick = () => toggleModal(false);
+
+        elements.studentForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if (!authUser) return;
+
+            elements.saveBtn.disabled = true;
+            elements.saveBtn.innerHTML = `<div class="loader"></div> <span>저장 중...</span>`;
+
+            const formData = new FormData(elements.studentForm);
+            const studentData = {
+                name: formData.get('name'),
+                studentId: formData.get('studentId'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
+                courses: formData.get('courses').split(/[,/]/).map(c => c.trim()).filter(c => c !== ""),
+                photo: selectedPhotoData || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop',
+                updatedAt: Date.now()
+            };
+
+            try {
+                if (currentEditingId) {
+                    const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentEditingId);
+                    await updateDoc(studentRef, studentData);
+                } else {
+                    const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+                    await addDoc(studentsCol, { ...studentData, createdAt: Date.now() });
+                }
+                toggleModal(false);
+            } catch (err) {
+                console.error(err);
+                showAlert("저장 실패", "클라우드 통신 중 오류가 발생했습니다.");
+                elements.saveBtn.disabled = false;
+                elements.saveBtn.innerHTML = `<span>프로필 저장</span>`;
+            }
+        };
+
+        window.deleteStudent = (id) => {
+            showAlert("프로필 삭제", "삭제된 정보는 복구할 수 없습니다. 계속하시겠습니까?", "confirm", async () => {
+                try {
+                    const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
+                    await deleteDoc(studentRef);
+                } catch (err) {
+                    showAlert("삭제 실패", "권한이 없거나 네트워크 오류입니다.");
+                }
+            });
+        };
+
+        window.editStudent = (id) => {
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+
+            currentEditingId = id;
+            document.getElementById('modalTitle').textContent = "프로필 정보 수정";
+            
+            const form = elements.studentForm;
+            form.name.value = student.name;
+            form.studentId.value = student.studentId;
+            form.phone.value = student.phone || "";
+            form.address.value = student.address || "";
+            form.courses.value = student.courses ? student.courses.join(', ') : "";
+
+            if (student.photo) {
+                selectedPhotoData = student.photo;
+                elements.previewImg.src = selectedPhotoData;
+                elements.previewImg.classList.remove('hidden');
+                elements.photoIcon.classList.add('hidden');
+            }
+            toggleModal(true);
+        };
+
+        const renderStudents = (queryStr = "") => {
+            const filtered = students
+                .filter(s => 
+                    s.name.toLowerCase().includes(queryStr.toLowerCase()) || 
+                    s.studentId.includes(queryStr)
+                )
+                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            elements.studentCountDisplay.textContent = filtered.length;
+            
+            if (filtered.length === 0) {
+                elements.studentGrid.innerHTML = "";
+                elements.emptyState.classList.remove('hidden');
+                return;
+            }
+
+            elements.emptyState.classList.add('hidden');
+            elements.studentGrid.innerHTML = filtered.map(student => `
+                <div class="profile-card glass-morphism rounded-3xl overflow-hidden shadow-sm relative group">
+                    <div class="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="editStudent('${student.id}')" class="bg-white/95 w-9 h-9 rounded-lg text-slate-800 hover:bg-slate-900 hover:text-white transition-all shadow-md">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="deleteStudent('${student.id}')" class="bg-white/95 w-9 h-9 rounded-lg text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-md">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="h-52 overflow-hidden relative">
+                        <img src="${student.photo}" alt="${student.name}" class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=AI+Biz'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/10 to-transparent"></div>
+                        <div class="absolute bottom-4 left-5">
+                            <h3 class="text-white font-bold text-lg">${student.name}</h3>
+                            <p class="text-blue-300 text-[10px] font-bold tracking-widest uppercase">${student.studentId}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center text-[11px] text-slate-500">
+                                <i class="fas fa-phone w-5 text-slate-400"></i>
+                                <span>${student.phone || '연락처 미기재'}</span>
+                            </div>
+                            <div class="flex items-start text-[11px] text-slate-500">
+                                <i class="fas fa-map-marker-alt w-5 text-slate-400 mt-0.5"></i>
+                                <span class="flex-1">${student.address || '주소지 미기재'}</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
+                            ${student.courses && student.courses.length > 0 ? 
+                                student.courses.map(c => `<span class="bg-slate-50 text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded border border-slate-200 uppercase">${c}</span>`).join('') 
+                                : '<span class="text-[9px] text-slate-300 italic">미수강</span>'
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        elements.searchInput.oninput = (e) => renderStudents(e.target.value);
+    </script>
+</body>
+</html>
